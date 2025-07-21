@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>柔和可爱风进度条 UI</title>
+    <style>
+      body {
+        user-select: none;
+        margin: 0;
+        background-color: #ffffff;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+      }
+
+      .video-wrapper {
+        width: 90%;
+        max-width: 720px;
+        border-radius: 16px;
+        box-shadow: 0 8px 24px rgba(255, 190, 200, 0.3);
+        overflow: hidden;
+        position: relative;
+        overflow: visible;
+      }
+
+      .controls {
+        padding: 1rem;
+        border-radius: 40px;
+        background-color: #ffffff;
+        position: relative;
+        overflow: visible;
+      }
+
+      .progress-container {
+        position: relative;
+        height: 8px;
+        background-color: #f0e0e0;
+        border-radius: 6px;
+        cursor: pointer;
+        overflow: visible;
+      }
+
+      .progress-bg {
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 100%;
+        width: 0%;
+        border-radius: 6px;
+        background-image: linear-gradient(
+          to right,
+          rgb(255, 154, 158),
+          rgb(250, 208, 196),
+          rgb(251, 194, 235)
+        );
+        transition: width 0.2s ease;
+      }
+
+      .buffered-bar {
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 100%;
+        border-radius: 6px;
+        background-color: rgba(255, 190, 200, 0.3);
+        transition: width 0.2s ease;
+      }
+
+      .thumbnail-preview {
+        position: absolute;
+        top: -100px;
+        width: 160px;
+        height: 90px;
+
+        background-image: url("./preview.jpg");
+        visibility: hidden;
+        opacity: 0;
+        z-index: 10;
+        border: 2px dashed #e50914;
+        border-radius: 9px;
+        box-shadow: 0 8px 12px rgba(0, 0, 0, 0.6);
+        transition: opacity 0.3s ease, background-position 0.1s ease;
+        pointer-events: none;
+      }
+
+      .tooltip {
+        position: absolute;
+        top: -40px;
+        transform: translateX(-50%);
+        font-size: 13px;
+        color: #ffffff;
+        background-color: rgba(0, 0, 0, 0.8);
+        padding: 4px 8px;
+        border-radius: 4px;
+        visibility: hidden;
+        opacity: 0;
+        white-space: nowrap;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        transition: opacity 0.2s ease;
+        pointer-events: none;
+      }
+
+      .time-display {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.85rem;
+        color: #000000;
+        margin-top: 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="video-wrapper">
+      <div class="controls">
+        <div class="progress-container" id="progressContainer">
+          <div class="buffered-bar" id="bufferedBar"></div>
+          <div class="progress-bg" id="progressBar"></div>
+          <div class="thumbnail-preview" id="thumbnailPreview"></div>
+          <div class="tooltip" id="tooltip">00:00</div>
+        </div>
+        <div class="time-display">
+          <span id="currentTime">0:00</span>
+          <span id="duration">16:40</span>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const progressBar = document.getElementById("progressBar");
+      const bufferedBar = document.getElementById("bufferedBar");
+      const progressContainer = document.getElementById("progressContainer");
+      const currentTimeDisplay = document.getElementById("currentTime");
+      const thumbnailPreview = document.getElementById("thumbnailPreview");
+      const tooltip = document.getElementById("tooltip");
+
+      const totalFrames = 2320; // 总帧数（与精灵图帧一致）
+      const columns = 10; // 每行10帧
+      const frameWidth = 160;
+      const frameHeight = 90;
+      const duration = 1000; // 假设总视频长度为300秒（5分钟）
+
+      function formatTime(seconds) {
+        const m = Math.floor(seconds / 60);
+        const s = Math.floor(seconds % 60);
+        return `${m}:${s.toString().padStart(2, "0")}`;
+      }
+
+      let currentTime = 0;
+      const interval = setInterval(() => {
+        if (currentTime >= duration) {
+          clearInterval(interval);
+          return;
+        }
+        currentTime += 1;
+        const percent = (currentTime / duration) * 100;
+        progressBar.style.width = `${percent}%`;
+        bufferedBar.style.width = `${Math.min(percent + 10, 100)}%`;
+        currentTimeDisplay.textContent = formatTime(currentTime);
+      }, 100);
+
+      // 点击跳转
+      progressContainer.addEventListener("click", (e) => {
+        const rect = progressContainer.getBoundingClientRect();
+        const percent = (e.clientX - rect.left) / rect.width;
+        currentTime = percent * duration;
+        progressBar.style.width = `${percent * 100}%`;
+        currentTimeDisplay.textContent = formatTime(currentTime);
+      });
+
+      // 精灵图预览
+      progressContainer.addEventListener("mousemove", (e) => {
+        const rect = progressContainer.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const percent = x / rect.width;
+        const time = percent * duration;
+
+        const frameIndex = Math.floor(percent * totalFrames);
+        const col = frameIndex % columns;
+        const row = Math.floor(frameIndex / columns);
+
+        const bgX = -col * frameWidth;
+        const bgY = -row * frameHeight;
+
+        thumbnailPreview.style.backgroundPosition = `${bgX}px ${bgY}px`;
+        thumbnailPreview.style.left = `${x - frameWidth / 2}px`;
+        thumbnailPreview.style.visibility = "visible";
+        thumbnailPreview.style.opacity = 1;
+
+        tooltip.textContent = formatTime(time);
+        tooltip.style.left = `${x}px`;
+        tooltip.style.visibility = "visible";
+        tooltip.style.opacity = 0.3;
+      });
+
+      progressContainer.addEventListener("mouseleave", () => {
+        thumbnailPreview.style.opacity = 0;
+        thumbnailPreview.style.visibility = "hidden";
+        tooltip.style.opacity = 0;
+        tooltip.style.visibility = "hidden";
+      });
+    </script>
+  </body>
+</html>

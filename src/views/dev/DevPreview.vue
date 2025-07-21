@@ -23,6 +23,10 @@
             <h2>ServerUptime 测试</h2>
             <ServerUptime startTime="2025-04-18T21:52:00" />
         </section>
+
+        <section class="debug-section">
+<VideoPlayer></VideoPlayer>
+        </section>
     </div>
 </template>
 
@@ -31,6 +35,7 @@ import VideoCard from '../../components/VideoCard.vue'
 import ServerUptime from '../../components/ServerUptime.vue'
 import Login from '../../components/Login.vue'
 import SignUp from '../../components/SignUp.vue'
+import VideoPlayer from '../../components/VideoPlayer.vue'
 
 const n = 1
 </script>
