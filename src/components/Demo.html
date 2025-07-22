@@ -1,0 +1,176 @@
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <title>视频控制面板</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f9f9f9;
+      padding: 20px;
+    }
+    video {
+      display: block;
+      width: 100%;
+      max-width: 640px;
+      margin-bottom: 10px;
+      
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: flex-end;
+    }
+    .group {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+    }
+    label {
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+    input, select, button {
+      padding: 6px;
+      font-size: 14px;
+    }
+    #status {
+      margin-top: 10px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <video id="video" preload="metadata" controls>
+    <source src="http://localhost:8000/IPX660.mp4" type="video/mp4" />
+    您的浏览器不支持 HTML5 视频。
+  </video>
+
+  <div class="controls">
+    <div class="group">
+      <label for="jumpInput">跳转时间（支持 hh:mm:ss / mm:ss / ss）</label>
+      <input type="text" id="jumpInput" placeholder="例如 01:23 或 83" />
+    </div>
+    <button id="jumpBtn">跳转</button>
+
+    <button id="togglePlayBtn">播放</button>
+
+    <div class="group">
+      <label for="speedSelect">播放倍速</label>
+      <select id="speedSelect">
+        <option value="0.5">0.5x</option>
+        <option value="1" selected>1.0x</option>
+        <option value="1.5">1.5x</option>
+        <option value="2">2.0x</option>
+        <option value="3">3.0x</option>
+                <option value="4">4.0x</option>
+
+        <option value="5">5.0x</option>
+      </select>
+    </div>
+
+    <div class="group">
+      <label for="volumeInput">音量 (0 ~ 1)</label>
+      <input type="number" id="volumeInput" step="0.1" min="0" max="1" value="1.0" />
+    </div>
+  </div>
+
+  <p id="status">当前时间: 0:00 / 总时长: 0:00</p>
+
+  <script>
+    (() => {
+      const $ = (id) => document.getElementById(id);
+
+      const video = $('video');
+      const jumpInput = $('jumpInput');
+      const jumpBtn = $('jumpBtn');
+      const togglePlayBtn = $('togglePlayBtn');
+      const speedSelect = $('speedSelect');
+      const volumeInput = $('volumeInput');
+      const status = $('status');
+
+      function formatTime(seconds) {
+        if (isNaN(seconds)) return '0:00';
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        const s = Math.floor(seconds % 60);
+        return h > 0
+          ? `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+          : `${m}:${s.toString().padStart(2, '0')}`;
+      }
+
+      function updateStatus() {
+        status.textContent = `当前时间: ${formatTime(video.currentTime)} / 总时长: ${formatTime(video.duration)}`;
+      }
+
+      function parseTimeInput(input) {
+        const parts = input.trim().split(':').map(Number);
+        if (parts.some(isNaN)) return null;
+
+        if (parts.length === 1) {
+          return parts[0];
+        } else if (parts.length === 2) {
+          return parts[0] * 60 + parts[1];
+        } else if (parts.length === 3) {
+          return parts[0] * 3600 + parts[1] * 60 + parts[2];
+        }
+        return null;
+      }
+
+      function handleJump() {
+        const input = jumpInput.value.trim();
+        const time = parseTimeInput(input);
+        const duration = video.duration;
+
+        if (time !== null && time >= 0 && time <= duration) {
+          const wasPlaying = !video.paused;
+          video.pause();
+          video.currentTime = time;
+          if (wasPlaying) video.play();
+        } else {
+          alert(`输入的时间无效或超出范围（0 ~ ${Math.floor(duration)} 秒）`);
+        }
+      }
+
+      function togglePlayback() {
+        if (video.paused) {
+          video.play();
+          togglePlayBtn.textContent = '暂停';
+        } else {
+          video.pause();
+          togglePlayBtn.textContent = '播放';
+        }
+      }
+
+      function changePlaybackRate() {
+        const rate = parseFloat(speedSelect.value);
+        video.playbackRate = rate;
+      }
+
+      function changeVolume() {
+        const vol = parseFloat(volumeInput.value);
+        if (vol >= 0 && vol <= 1) {
+          video.volume = vol;
+        } else {
+          alert('音量应在 0 ~ 1 之间');
+          volumeInput.value = video.volume.toFixed(1);
+        }
+      }
+
+      function bindEvents() {
+        video.addEventListener('timeupdate', updateStatus);
+        video.addEventListener('loadedmetadata', updateStatus);
+        jumpBtn.addEventListener('click', handleJump);
+        togglePlayBtn.addEventListener('click', togglePlayback);
+        speedSelect.addEventListener('change', changePlaybackRate);
+        volumeInput.addEventListener('change', changeVolume);
+      }
+
+      bindEvents();
+    })();
+  </script>
+
+</body>
+</html>

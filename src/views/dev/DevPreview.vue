@@ -2,7 +2,7 @@
     <div class="dev-preview-container">
         <section class="debug-section">
             <h2>Login 测试</h2>
-            <Login />
+            <!-- <Login /> -->
         </section>
 
         <section class="debug-section">
@@ -25,7 +25,7 @@
         </section>
 
         <section class="debug-section">
-<VideoPlayer></VideoPlayer>
+            <VideoPlayer></VideoPlayer>
         </section>
     </div>
 </template>

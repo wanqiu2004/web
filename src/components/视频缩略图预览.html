@@ -90,8 +90,8 @@
         top: -40px;
         transform: translateX(-50%);
         font-size: 13px;
-        color: #ffffff;
-        background-color: rgba(0, 0, 0, 0.8);
+        color: red;
+        background-color: rgba(0, 0, 0, 1);
         padding: 4px 8px;
         border-radius: 4px;
         visibility: hidden;
@@ -104,10 +104,54 @@
 
       .time-display {
         display: flex;
-        justify-content: space-between;
+        align-items: center;
         font-size: 0.85rem;
-        color: #000000;
+        color: #000;
         margin-top: 6px;
+        user-select: none;
+        gap: 4px; /* 间隔美化 */
+      }
+
+      .time-group {
+        position: relative;
+        display: inline-block;
+      }
+
+      .time-highlight {
+        font-weight: bold;
+        color: red;
+        font-size: 1rem;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        cursor: pointer;
+      }
+
+      .time-highlight:hover {
+        transform: scale(1.1);
+        box-shadow: 0 0 4px rgba(231, 76, 60, 0.3);
+      }
+
+      .time-input {
+        display: none;
+        font-size: 1rem;
+        padding: 2px 4px;
+        border: 1px solid #e74c3c;
+        border-radius: 4px;
+        width: 60px;
+        font-weight: bold;
+        color: #e74c3c;
+        outline: none;
+        box-shadow: 0 0 5px rgba(231, 76, 60, 0.3);
+      }
+
+      .time-separator {
+        margin: 0 4px;
+        color: black;
+        font-weight: 1000;
+      }
+
+      .time-total {
+        color: #555;
+        font-size: 0.9rem;
       }
     </style>
   </head>
@@ -121,8 +165,17 @@
           <div class="tooltip" id="tooltip">00:00</div>
         </div>
         <div class="time-display">
-          <span id="currentTime">0:00</span>
-          <span id="duration">16:40</span>
+          <span id="currentTimeWrapper" class="time-group">
+            <span id="currentTime" class="time-highlight">0:00</span>
+            <input
+              type="text"
+              id="currentTimeInput"
+              class="time-input"
+              value="0:00"
+            />
+          </span>
+          <span class="time-separator">/</span>
+          <span id="duration" class="time-total">16:40</span>
         </div>
       </div>
     </div>
@@ -191,7 +244,7 @@
         tooltip.textContent = formatTime(time);
         tooltip.style.left = `${x}px`;
         tooltip.style.visibility = "visible";
-        tooltip.style.opacity = 0.3;
+        tooltip.style.opacity = 1;
       });
 
       progressContainer.addEventListener("mouseleave", () => {
@@ -200,6 +253,36 @@
         tooltip.style.opacity = 0;
         tooltip.style.visibility = "hidden";
       });
+    </script>
+    <script>
+      const currentTimeSpan = document.getElementById("currentTime");
+      const currentTimeInput = document.getElementById("currentTimeInput");
+      const wrapper = document.getElementById("currentTimeWrapper");
+
+      // 显示输入框
+      currentTimeSpan.addEventListener("click", () => {
+        currentTimeInput.value = currentTimeSpan.textContent.trim();
+        currentTimeSpan.style.display = "none";
+        currentTimeInput.style.display = "inline-block";
+        currentTimeInput.focus();
+      });
+
+      // 恢复显示状态
+      function restoreDisplay() {
+        currentTimeSpan.textContent = currentTimeInput.value.trim();
+        currentTimeInput.style.display = "none";
+        currentTimeSpan.style.display = "inline";
+      }
+
+      // Enter键确认
+      currentTimeInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          restoreDisplay();
+        }
+      });
+
+      // 失焦确认
+      currentTimeInput.addEventListener("blur", restoreDisplay);
     </script>
   </body>
 </html>
