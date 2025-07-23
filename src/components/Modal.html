@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>模态框（高斯模糊背景）</title>
+  <style>
+    :root {
+      --primary-color: #4a90e2;
+      --background-color: #ffffff;
+      --overlay-blur: 10px;
+      --overlay-color: rgba(255, 255, 255, 0.1);
+      --border-radius: 12px;
+      --transition-duration: 0.3s;
+      --modal-width: 90%;
+      --modal-max-width: 500px;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-image: url('https://images.unsplash.com/photo-1519125323398-675f0ddb6308');
+      background-size: cover;
+      background-position: center;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+    }
+
+    button {
+      padding: 12px 24px;
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background-color var(--transition-duration);
+    }
+
+    button:hover {
+      background-color: #3a78c2;
+    }
+
+    /* Overlay with blur effect */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      backdrop-filter: blur(var(--overlay-blur));
+      -webkit-backdrop-filter: blur(var(--overlay-blur));
+      background-color: var(--overlay-color);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity var(--transition-duration), visibility var(--transition-duration);
+      z-index: 1000;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    /* Modal box */
+    .modal {
+      background-color: var(--background-color);
+      padding: 24px;
+      border-radius: var(--border-radius);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+      width: var(--modal-width);
+      max-width: var(--modal-max-width);
+      transform: translateY(-30px);
+      opacity: 0;
+      transition: opacity var(--transition-duration), transform var(--transition-duration);
+    }
+
+    .modal.active {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .modal-header {
+      font-size: 20px;
+      font-weight: bold;
+      margin-bottom: 12px;
+    }
+
+    .modal-body {
+      font-size: 16px;
+      color: #444;
+      margin-bottom: 24px;
+    }
+
+    .modal-footer {
+      text-align: right;
+    }
+
+    .close-btn {
+      background-color: #ccc;
+      color: #333;
+      margin-right: 10px;
+    }
+
+    .close-btn:hover {
+      background-color: #bbb;
+    }
+  </style>
+</head>
+<body>
+
+  <button id="openModalBtn">打开模态框</button>
+
+  <!-- Modal Structure -->
+  <div id="modalOverlay" class="modal-overlay">
+    <div class="modal" id="modalBox">
+      <div class="modal-header">欢迎使用模态框</div>
+      <div class="modal-body">
+        当前模态框展示时，背景经过高斯模糊处理，营造出更现代、沉浸的用户体验。
+      </div>
+      <div class="modal-footer">
+        <button class="close-btn" id="closeModalBtn">关闭</button>
+        <button onclick="alert('确认操作')">确认</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const openBtn = document.getElementById('openModalBtn');
+    const closeBtn = document.getElementById('closeModalBtn');
+    const modalOverlay = document.getElementById('modalOverlay');
+    const modalBox = document.getElementById('modalBox');
+
+    function openModal() {
+      modalOverlay.classList.add('active');
+      modalBox.classList.add('active');
+    }
+
+    function closeModal() {
+      modalOverlay.classList.remove('active');
+      modalBox.classList.remove('active');
+    }
+
+    openBtn.addEventListener('click', openModal);
+    closeBtn.addEventListener('click', closeModal);
+    modalOverlay.addEventListener('click', (e) => {
+      if (e.target === modalOverlay) {
+        closeModal();
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeModal();
+      }
+    });
+  </script>
+</body>
+</html>
