@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>浮动信息面板（高斯模糊美化 + 拖动 + 过渡）</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: "Segoe UI", sans-serif;
+        height: 100vh;
+        background: url("./95-1920x1080.jpg") no-repeat center
+          center fixed;
+        background-size: cover;
+      }
+
+      #floating-panel {
+        position: fixed;
+        width: 260px;
+        background: rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(12px);
+        border-radius: 12px;
+        border: 2px dashed #000; /* 使用单一的border属性避免覆盖 */
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        color: blanchedalmond;
+        font-family: "Segoe UI", sans-serif;
+        z-index: 99999;
+        user-select: none;
+        overflow: hidden;
+      }
+
+      #panel-header {
+        padding: 10px 16px;
+        background: rgba(f, f, f, 0.8);
+        font-weight: bold;
+        cursor: move;
+        color: black;
+      }
+
+      #panel-body {
+        padding: 10px 16px;
+        font-size: 14px;
+        line-height: 1.5;
+        color: mediumslateblue;
+      }
+    </style>
+  </head>
+  <body>
+    <script>
+      window.addEventListener("load", () => {
+        createFloatingPanel();
+      });
+
+      function createFloatingPanel() {
+        const panel = document.createElement("div");
+        panel.id = "floating-panel";
+        panel.innerHTML = `
+      <div id="panel-header">浮动信息面板</div>
+      <div id="panel-body">
+        <p>页面加载完成</p>
+        <p>你可以在此显示日志、状态、控制按钮等</p>
+      </div>
+    `;
+
+        document.body.appendChild(panel);
+
+        // 居中函数
+        function centerPanel() {
+          const x = (window.innerWidth - panel.offsetWidth) / 2;
+          const y = (window.innerHeight - panel.offsetHeight) / 2;
+          panel.style.left = `${x}px`;
+          panel.style.top = `${y}px`;
+        }
+
+        centerPanel(); // 初始居中
+        window.addEventListener("resize", centerPanel); // 窗口大小变化时重新居中
+
+        let isDragging = false;
+        let offsetX, offsetY;
+
+        const header = document.getElementById("panel-header");
+
+        // 开始拖动
+        header.addEventListener("mousedown", (e) => {
+          isDragging = true;
+          offsetX = e.clientX - panel.offsetLeft;
+          offsetY = e.clientY - panel.offsetTop;
+          panel.style.transition = "none"; // 禁用过渡，拖动更流畅
+        });
+
+        // 拖动中
+        document.addEventListener("mousemove", (e) => {
+          if (isDragging) {
+            panel.style.left = `${e.clientX - offsetX}px`;
+            panel.style.top = `${e.clientY - offsetY}px`;
+          }
+        });
+
+        // 拖动结束
+        document.addEventListener("mouseup", () => {
+          if (!isDragging) return;
+
+          isDragging = false;
+
+          // 恢复过渡动画
+          panel.style.transition = "left 0.3s ease, top 0.3s ease";
+
+          // 自动居中
+          centerPanel();
+        });
+      }
+    </script>
+  </body>
+</html>

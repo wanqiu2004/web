@@ -9,6 +9,7 @@
         user-select: none;
         margin: 0;
         background-color: #ffffff;
+        background: linear-gradient(to bottom right, #ffe0f0, #d6e0ff);
         display: flex;
         justify-content: center;
         align-items: center;
@@ -27,7 +28,7 @@
 
       .controls {
         padding: 1rem;
-        border-radius: 40px;
+        border-radius: 8px;
         background-color: #ffffff;
         position: relative;
         overflow: visible;
@@ -74,7 +75,7 @@
         width: 160px;
         height: 90px;
 
-        background-image: url("./preview.jpg");
+        background-image: url("http://localhost:8000/preview.jpg");
         visibility: hidden;
         opacity: 0;
         z-index: 10;
@@ -188,30 +189,17 @@
       const thumbnailPreview = document.getElementById("thumbnailPreview");
       const tooltip = document.getElementById("tooltip");
 
-      const totalFrames = 2320; // 总帧数（与精灵图帧一致）
+      const totalFrames = 5048; // 总帧数（与精灵图帧一致）
       const columns = 10; // 每行10帧
       const frameWidth = 160;
       const frameHeight = 90;
-      const duration = 1000; // 假设总视频长度为300秒（5分钟）
+      const duration = 0; // 假设总视频长度为300秒（5分钟）
 
       function formatTime(seconds) {
         const m = Math.floor(seconds / 60);
         const s = Math.floor(seconds % 60);
         return `${m}:${s.toString().padStart(2, "0")}`;
       }
-
-      let currentTime = 0;
-      const interval = setInterval(() => {
-        if (currentTime >= duration) {
-          clearInterval(interval);
-          return;
-        }
-        currentTime += 1;
-        const percent = (currentTime / duration) * 100;
-        progressBar.style.width = `${percent}%`;
-        bufferedBar.style.width = `${Math.min(percent + 10, 100)}%`;
-        currentTimeDisplay.textContent = formatTime(currentTime);
-      }, 100);
 
       // 点击跳转
       progressContainer.addEventListener("click", (e) => {
