@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>丝滑数字倒计时（性能优化版）</title>
+    <style>
+      :root {
+        --border-color: black;
+        --digit-stroke: black;
+        --digit-shadow: rgba(0, 0, 0, 0.05);
+        --digit-size: 64px;
+        --box-w: 80px;
+        --box-h: 110px;
+        --radius: 14px;
+        --duration: 260ms;
+        --ease: cubic-bezier(0.22, 1, 0.36, 1);
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: white;
+        font-family: "Poppins", "Microsoft YaHei", sans-serif;
+      }
+
+      .countdown {
+        display: flex;
+        gap: 12px;
+        padding: 18px 26px;
+        background: #fff;
+        border-radius: 24px;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+        align-items: center;
+      }
+
+      .digit {
+        position: relative;
+        width: var(--box-w);
+        height: var(--box-h);
+        border: 2px dashed var(--border-color);
+        border-radius: var(--radius);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        overflow: hidden;
+        box-shadow: 0 3px 6px var(--digit-shadow);
+      }
+
+      .label {
+        font-size: 20px;
+        color: black;
+        font-weight: 600;
+        margin-left: 4px;
+        user-select: none;
+      }
+
+      .num {
+        position: absolute;
+        font-size: var(--digit-size);
+        font-weight: 900;
+        color: transparent;
+        -webkit-text-stroke: 2px var(--digit-stroke);
+        text-stroke: 2px var(--digit-stroke);
+        will-change: transform, opacity;
+      }
+
+      /* 进入/离开动画（滑入滑出+缩放） */
+      .enter {
+        opacity: 0;
+        transform: translateY(80%) scale(1.8);
+      }
+      .enter-active {
+        opacity: 1;
+        transform: translateY(0%) scale(1);
+        transition: transform var(--duration) var(--ease),
+          opacity var(--duration) var(--ease);
+      }
+      .leave {
+        opacity: 1;
+        transform: translateY(0%) scale(1.8);
+      }
+      .leave-active {
+        opacity: 0;
+        transform: translateY(-80%) scale(1);
+        transition: transform var(--duration) var(--ease),
+          opacity var(--duration) var(--ease);
+      }
+
+      .colon {
+        font-size: calc(var(--digit-size) * 0.9);
+        font-weight: 900;
+        color: transparent;
+        -webkit-text-stroke: 2px var(--digit-stroke);
+        user-select: none;
+      }
+
+      @media (max-width: 480px) {
+        :root {
+          --box-w: 60px;
+          --box-h: 85px;
+          --digit-size: 48px;
+        }
+        .label {
+          font-size: 16px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="countdown" id="countdown">
+      <div class="digit" data-type="m10"><span class="num">3</span></div>
+      <div class="digit" data-type="m1"><span class="num">0</span></div>
+      <span class="label">分</span>
+      <!-- <span class="colon">:</span> -->
+      <div class="digit" data-type="s10"><span class="num">0</span></div>
+      <div class="digit" data-type="s1"><span class="num">0</span></div>
+      <span class="label">秒</span>
+    </div>
+
+    <script>
+      /**
+       * 高健壮性/高性能要点：
+       * 1. 以 expiresAt（绝对时间）计算剩余秒，避免 setInterval 停顿/漂移导致的累积误差。
+       * 2. 高频 tick（如 100ms）也只在“秒值变化”时才触发动画，避免堆叠。
+       * 3. 可见性变化时，强制同步 UI（立即清理所有旧节点），避免重叠。
+       */
+
+      (function () {
+        const countdownEl = document.getElementById("countdown");
+
+        // === 配置 ===
+        const MINUTES = 30;
+        const TICK_INTERVAL = 100; // 你可以改成 100ms 验证不会重叠
+        const DURATION = 260; // 动画时长（和 CSS --duration 对齐，保证清理时机）
+        const prefersReduced = window.matchMedia(
+          "(prefers-reduced-motion: reduce)"
+        ).matches;
+
+        // 以绝对时间算剩余，防止页面挂起导致误差
+        const expiresAt = Date.now() + MINUTES * 60 * 1000;
+
+        const digits = {
+          m10: countdownEl.querySelector('[data-type="m10"]'),
+          m1: countdownEl.querySelector('[data-type="m1"]'),
+          s10: countdownEl.querySelector('[data-type="s10"]'),
+          s1: countdownEl.querySelector('[data-type="s1"]'),
+        };
+
+        let lastRenderedSec = null; // 记录上一秒，避免高频 tick 重复动画
+        let timer = null;
+
+        function leftSeconds() {
+          return Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
+        }
+
+        function padMMSS(sec) {
+          const m = Math.floor(sec / 60);
+          const s = sec % 60;
+          return {
+            m10: Math.floor(m / 10),
+            m1: m % 10,
+            s10: Math.floor(s / 10),
+            s1: s % 10,
+          };
+        }
+
+        function cleanDigit(digitEl, keepNode) {
+          // 清理 digit 中除 keepNode 外的所有 .num
+          const nums = digitEl.querySelectorAll(".num");
+          nums.forEach((n) => {
+            if (n !== keepNode) n.remove();
+          });
+        }
+
+        function forceSync(sec) {
+          // 非动画方式直接把 DOM 对齐一次（页面重新可见时用）
+          const { m10, m1, s10, s1 } = padMMSS(sec);
+          setDigit(digits.m10, String(m10), true);
+          setDigit(digits.m1, String(m1), true);
+          setDigit(digits.s10, String(s10), true);
+          setDigit(digits.s1, String(s1), true);
+        }
+
+        function setDigit(digitEl, newValue, instant = false) {
+          const current = digitEl.querySelector(".num");
+          if (current && current.textContent === newValue) {
+            // 可能是 forceSync 进来，但也要确保清理掉多余节点
+            cleanDigit(digitEl, current);
+            return;
+          }
+
+          if (instant || prefersReduced) {
+            // 直接覆盖，不做动画
+            if (current) {
+              current.textContent = newValue;
+              cleanDigit(digitEl, current);
+            } else {
+              const el = document.createElement("span");
+              el.className = "num";
+              el.textContent = newValue;
+              digitEl.appendChild(el);
+              cleanDigit(digitEl, el);
+            }
+            return;
+          }
+
+          // 动画模式
+          // 旧的 -> leave
+          if (current) {
+            current.classList.add("leave");
+            void current.offsetWidth; // 强制回流
+            current.classList.add("leave-active");
+            // 动画结束后移除
+            current.addEventListener("transitionend", () => current.remove(), {
+              once: true,
+            });
+          }
+
+          // 新的 -> enter
+          const next = document.createElement("span");
+          next.className = "num enter";
+          next.textContent = newValue;
+          digitEl.appendChild(next);
+          void next.offsetWidth;
+          next.classList.add("enter-active");
+          next.addEventListener(
+            "transitionend",
+            () => {
+              next.classList.remove("enter", "enter-active");
+              cleanDigit(digitEl, next);
+            },
+            { once: true }
+          );
+        }
+
+        function render(sec) {
+          const { m10, m1, s10, s1 } = padMMSS(sec);
+          setDigit(digits.m10, String(m10));
+          setDigit(digits.m1, String(m1));
+          setDigit(digits.s10, String(s10));
+          setDigit(digits.s1, String(s1));
+        }
+
+        function tick() {
+          const sec = leftSeconds();
+
+          // 高频 tick，但只有当“秒数变化”才渲染
+          if (sec !== lastRenderedSec) {
+            render(sec);
+            lastRenderedSec = sec;
+          }
+
+          if (sec <= 0) {
+            clearInterval(timer);
+          }
+        }
+
+        // 初始化
+        lastRenderedSec = leftSeconds();
+        forceSync(lastRenderedSec);
+        timer = setInterval(tick, TICK_INTERVAL);
+
+        // 页面可见性处理：回来时强制同步 & 清理
+        document.addEventListener("visibilitychange", () => {
+          if (document.visibilityState === "visible") {
+            const sec = leftSeconds();
+            lastRenderedSec = sec;
+            forceSync(sec); // 无动画对齐，避免重叠
+          }
+        });
+      })();
+    </script>
+  </body>
+</html>
