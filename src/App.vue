@@ -1,7 +1,7 @@
 <template>
-  <ResponsiveImageResizer />
+  <SliderCaptcha />
 </template>
 
 <script setup>
-import ResponsiveImageResizer from './components/ResponsiveImageResizer.vue'
+import SliderCaptcha from './components/SliderCaptcha.vue'
 </script>
