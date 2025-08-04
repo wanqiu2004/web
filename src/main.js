@@ -1,4 +1,4 @@
 import { createApp } from 'vue'
-import App from './components/SliderCaptcha.vue'
+import App from './components/ThemeSwitcher.vue'
 
 createApp(App).mount('#app')
