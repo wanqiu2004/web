@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>企业级验证码输入 • Demo</title>
+  <style>
+    :root{
+      --bg: #f6f8fb;
+      --card: #ffffff;
+      --accent: #4f46e5; /* indigo-600 */
+      --muted: #6b7280;
+      --success: #10b981;
+      --danger: #ef4444;
+      --shadow: 0 6px 20px rgba(15,23,42,0.08);
+      --glass: rgba(255,255,255,0.6);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      background: linear-gradient(180deg, #eef2ff 0%, var(--bg) 40%);
+      color: #0f172a;
+      -webkit-font-smoothing:antialiased;
+      display:flex;align-items:center;justify-content:center;padding:24px;
+    }
+
+    .card{
+      width:100%;max-width:800px;background:var(--card);border-radius:14px;padding:28px;box-shadow:var(--shadow);display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:center;
+    }
+
+    .left{
+      padding-right:10px;
+    }
+    h1{margin:0 0 6px;font-size:20px}
+    p.lead{margin:0 0 16px;color:var(--muted);font-size:14px}
+
+    .pin-wrap{display:flex;gap:12px;align-items:center}
+    .pin{width:56px;height:68px;border-radius:10px;background:linear-gradient(180deg,#fff,#fbfdff);box-shadow:0 6px 18px rgba(16,24,40,0.06);display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:600;letter-spacing:6px;border:1px solid rgba(15,23,42,0.06);transition:all .14s ease}
+    .pin:focus{outline:none;transform:translateY(-3px);box-shadow:0 10px 30px rgba(79,70,229,0.14);border-color:rgba(79,70,229,0.12)}
+    .pin.empty{color:var(--muted);font-weight:500}
+
+    /* hidden real input overlay for better UX on mobile */
+    .visually-hidden{position:absolute!important;height:1px;width:1px;overflow:hidden;clip:rect(1px,1px,1px,1px);white-space:nowrap}
+
+    .controls{display:flex;gap:12px;align-items:center;margin-top:14px}
+    button.btn{padding:10px 12px;border-radius:10px;border:0;background:var(--accent);color:#fff;font-weight:600;cursor:pointer;box-shadow:0 6px 18px rgba(79,70,229,0.12)}
+    button.ghost{background:transparent;border:1px solid rgba(15,23,42,0.06);color:var(--muted);box-shadow:none}
+
+    .right{background:linear-gradient(180deg,rgba(79,70,229,0.04),rgba(79,70,229,0.01));border-radius:10px;padding:18px;display:flex;flex-direction:column;gap:10px}
+    .meta{font-size:13px;color:var(--muted)}
+    .status{display:flex;gap:10px;align-items:center}
+    .dot{width:10px;height:10px;border-radius:99px}
+    .dot.ok{background:var(--success)}
+    .dot.warn{background:#f59e0b}
+    .dot.err{background:var(--danger)}
+
+    .hint{font-size:13px;color:var(--muted);margin-top:8px}
+
+    .small{font-size:13px;color:var(--muted)}
+
+    .actions{display:flex;flex-direction:column;gap:8px;margin-top:auto}
+
+    .resend{background:transparent;border:0;color:var(--accent);font-weight:700;cursor:pointer}
+
+    .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:28px;background:rgba(15,23,42,0.95);color:#fff;padding:10px 14px;border-radius:10px;box-shadow:0 8px 30px rgba(2,6,23,0.5);display:none}
+
+    /* responsive */
+    @media (max-width:780px){
+      .card{grid-template-columns:1fr;}
+      .pin{width:48px;height:62px;font-size:24px}
+    }
+
+    /* nice caret animation for empty boxes */
+    .caret{width:6px;height:26px;background:linear-gradient(180deg,var(--accent),#7c3aed);border-radius:3px;animation:blink 1s infinite}
+    @keyframes blink{0%,50%{opacity:1}51%,100%{opacity:0}}
+
+  </style>
+</head>
+<body>
+  <main class="card" role="main">
+    <section class="left">
+      <h1>请输入 6 位验证码</h1>
+      <p class="lead">为保护您的账户安全，我们已向 <strong>+86 138****1234</strong> 发送验证码。请输入收到的 6 位验证码完成验证。</p>
+
+      <form id="pinForm" autocomplete="off" novalidate>
+        <!-- We'll keep six visual boxes and a single hidden input for mobile paste & IME friendliness -->
+        <div class="pin-wrap" id="pinWrap" aria-label="验证码输入，6 位" role="group">
+          <!-- boxes inserted by JS -->
+        </div>
+
+        <div class="controls">
+          <button class="btn" type="submit">验证并登录</button>
+          <button class="ghost" type="button" id="clearBtn">清除</button>
+          <div class="small" id="meter" aria-live="polite"></div>
+        </div>
+
+        <!-- hidden single input to receive paste events on mobile more reliably -->
+        <input inputmode="numeric" pattern="[0-9]*" maxlength="6" id="hiddenInput" class="visually-hidden" aria-hidden="true">
+      </form>
+
+      <div class="hint">提示：可直接粘贴验证码（6 位），支持键盘导航（← →）、自动跳转、退格返回。</div>
+    </section>
+
+    <aside class="right" aria-hidden="false">
+      <div class="meta">尝试次数：<strong id="tries">0</strong>/5</div>
+      <div class="status">
+        <div class="dot ok" id="dot"></div>
+        <div class="small" id="statusText">等待输入验证码</div>
+      </div>
+
+      <div class="actions">
+        <div class="small">若未收到验证码，可在 <strong id="countdown">00:30</strong> 后重发。</div>
+        <div>
+          <button class="resend" id="resendBtn" disabled>重新发送验证码</button>
+        </div>
+        <div class="small">安全提示：验证码仅用于本次登录，30 分钟内有效。如非您本人操作，请忽略或联系支持。</div>
+      </div>
+    </aside>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    (function(){
+      const LENGTH = 6;
+      const pinWrap = document.getElementById('pinWrap');
+      const hiddenInput = document.getElementById('hiddenInput');
+      const form = document.getElementById('pinForm');
+      const clearBtn = document.getElementById('clearBtn');
+      const meter = document.getElementById('meter');
+      const triesEl = document.getElementById('tries');
+      const statusText = document.getElementById('statusText');
+      const dot = document.getElementById('dot');
+      const resendBtn = document.getElementById('resendBtn');
+      const countdownEl = document.getElementById('countdown');
+      const toast = document.getElementById('toast');
+
+      let tries = 0;
+      let countdown = 30; // seconds until resend
+      let countdownTimer = null;
+
+      // Create 6 boxes
+      const boxes = [];
+      for(let i=0;i<LENGTH;i++){
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'pin empty';
+        btn.setAttribute('aria-label', `验证码第 ${i+1} 位`);
+        btn.setAttribute('data-index', i);
+        btn.setAttribute('tabindex', i===0? '0' : '-1');
+        btn.addEventListener('click', onBoxClick);
+        btn.addEventListener('keydown', onBoxKeyDown);
+        pinWrap.appendChild(btn);
+        boxes.push(btn);
+      }
+
+      // focus first box on load
+      boxes[0].focus();
+
+      function onBoxClick(e){
+        const idx = +e.currentTarget.dataset.index;
+        focusBox(idx);
+        // show hidden input for mobile keyboards to appear
+        showHiddenInput();
+      }
+
+      function onBoxKeyDown(e){
+        const idx = +e.currentTarget.dataset.index;
+        if(e.key === 'ArrowLeft'){
+          focusBox(Math.max(0, idx-1));
+          e.preventDefault();
+        } else if(e.key === 'ArrowRight'){
+          focusBox(Math.min(LENGTH-1, idx+1));
+          e.preventDefault();
+        } else if(e.key === 'Backspace'){
+          // clear this box and move back
+          setBoxValue(idx, '');
+          focusBox(Math.max(0, idx-1));
+          updateMeter();
+          e.preventDefault();
+        } else if(e.key.length === 1){
+          // printable char
+          handleCharInput(e.key, idx);
+          e.preventDefault();
+        }
+      }
+
+      function handleCharInput(char, idx){
+        // allow digits and letters, convert to upper
+        const m = char.match(/[0-9a-zA-Z]/);
+        if(!m) return;
+        const v = char.toUpperCase();
+        setBoxValue(idx, v);
+        if(idx < LENGTH-1) focusBox(idx+1);
+        updateMeter();
+        checkComplete();
+      }
+
+      function setBoxValue(index, value){
+        const el = boxes[index];
+        el.classList.toggle('empty', !value);
+        el.textContent = value || '';
+      }
+
+      function focusBox(index){
+        boxes.forEach((b,i)=>{
+          b.setAttribute('tabindex', i===index? '0' : '-1');
+        });
+        boxes[index].focus();
+        // show caret in empty box
+        boxes[index].innerHTML = boxes[index].textContent || '';
+        if(!boxes[index].textContent){
+          const c = document.createElement('span');
+          c.className = 'caret';
+          boxes[index].appendChild(c);
+        }
+      }
+
+      function collect(){
+        return boxes.map(b => b.textContent.trim() || '').join('');
+      }
+
+      function updateMeter(){
+        const got = collect().replace(/\s/g,'');
+        meter.textContent = `${got.length}/${LENGTH}`;
+      }
+
+      function checkComplete(){
+        const code = collect();
+        if(code.length === LENGTH){
+          // auto submit
+          statusText.textContent = '正在验证...';
+          dot.className = 'dot warn';
+          // simulate async verification
+          simulateVerify(code).then(valid=>{
+            if(valid){
+              statusText.textContent = '验证成功，正在跳转…';
+              dot.className = 'dot ok';
+              showToast('验证成功！');
+              // In real app, submit to server here
+              setTimeout(()=>{
+                // reset for demo
+                resetAll();
+              },900);
+            } else {
+              tries++;
+              triesEl.textContent = String(tries);
+              statusText.textContent = '验证码错误，请重试';
+              dot.className = 'dot err';
+              showToast('验证码错误，请重新输入', true);
+              // indicate wrong - shake animation
+              shake();
+              // clear inputs
+              setTimeout(()=>{
+                clearBoxes();
+                focusBox(0);
+                updateMeter();
+              },300);
+            }
+          });
+        }
+      }
+
+      function simulateVerify(code){
+        // fake network delay
+        return new Promise(resolve=>{
+          setTimeout(()=>{
+            // for demo, accept 'ABC123' or '123456'
+            const ok = code === 'ABC123' || code === '123456';
+            resolve(ok);
+          },750);
+        });
+      }
+
+      function clearBoxes(){
+        boxes.forEach(b=>{b.textContent = ''; b.classList.add('empty');});
+      }
+
+      clearBtn.addEventListener('click', ()=>{
+        clearBoxes();
+        focusBox(0);
+        updateMeter();
+      });
+
+      form.addEventListener('submit', (e)=>{
+        e.preventDefault();
+        const code = collect();
+        if(code.length !== LENGTH){
+          showToast('请输入完整的 6 位验证码', true);
+          focusBox(code.length || 0);
+          return;
+        }
+        // force check
+        checkComplete();
+      });
+
+      // hidden input paste support (for mobile and IME)
+      hiddenInput.addEventListener('input', (e)=>{
+        const v = e.target.value.replace(/\s/g,'').toUpperCase().slice(0,LENGTH);
+        if(!v) return;
+        for(let i=0;i<LENGTH;i++){
+          setBoxValue(i, v[i] || '');
+        }
+        updateMeter();
+        checkComplete();
+        // clear hidden input
+        e.target.value = '';
+      });
+
+      // Listen to paste on whole document
+      document.addEventListener('paste', (e)=>{
+        const text = (e.clipboardData || window.clipboardData).getData('text') || '';
+        const cleaned = text.replace(/[^0-9a-zA-Z]/g,'').toUpperCase().slice(0,LENGTH);
+        if(cleaned.length===0) return;
+        // fill boxes
+        for(let i=0;i<LENGTH;i++) setBoxValue(i, cleaned[i]||'');
+        updateMeter();
+        checkComplete();
+        e.preventDefault();
+      });
+
+      // allow clicking outside to open virtual keyboard by focusing hidden input
+      pinWrap.addEventListener('touchstart', showHiddenInput, {passive:true});
+      pinWrap.addEventListener('mousedown', showHiddenInput);
+
+      function showHiddenInput(){
+        hiddenInput.focus();
+      }
+
+      // resend countdown logic
+      function startCountdown(sec){
+        countdown = sec;
+        resendBtn.disabled = true;
+        updateCountdown();
+        if(countdownTimer) clearInterval(countdownTimer);
+        countdownTimer = setInterval(()=>{
+          countdown--;
+          updateCountdown();
+          if(countdown<=0){
+            clearInterval(countdownTimer);
+            resendBtn.disabled = false;
+            countdownEl.textContent = '00:00';
+          }
+        },1000);
+      }
+      function updateCountdown(){
+        const mm = String(Math.floor(countdown/60)).padStart(2,'0');
+        const ss = String(countdown%60).padStart(2,'0');
+        countdownEl.textContent = `${mm}:${ss}`;
+      }
+
+      resendBtn.addEventListener('click', ()=>{
+        // in real app, call backend resend API
+        showToast('已重新发送验证码');
+        startCountdown(30);
+      });
+
+      // start initial countdown
+      startCountdown(30);
+
+      // toast
+      let toastTimer = null;
+      function showToast(msg, isError=false){
+        toast.textContent = msg;
+        toast.style.display = 'block';
+        toast.style.background = isError ? 'rgba(239,68,68,0.95)' : 'rgba(15,23,42,0.95)';
+        if(toastTimer) clearTimeout(toastTimer);
+        toastTimer = setTimeout(()=>{toast.style.display='none'},2000);
+      }
+
+      function shake(){
+        pinWrap.animate([
+          {transform: 'translateX(0)'},
+          {transform: 'translateX(-8px)'},
+          {transform: 'translateX(8px)'},
+          {transform: 'translateX(0)'}
+        ],{duration:360,iterations:1});
+      }
+
+      function resetAll(){
+        clearBoxes();
+        updateMeter();
+        tries = 0; triesEl.textContent = '0';
+        statusText.textContent = '等待输入验证码';
+        dot.className = 'dot ok';
+        focusBox(0);
+      }
+
+      // initialize meter
+      updateMeter();
+
+      // for accessibility: expose a keyboard-only flow
+      // allow focusing the first box via keyboard (tab)
+      boxes[0].addEventListener('focus', ()=>{
+        // ensure caret present
+        focusBox(0);
+      });
+
+      // handle window blur to remove caret visuals
+      window.addEventListener('blur', ()=>{
+        boxes.forEach(b=>{
+          const c = b.querySelector('.caret');
+          if(c) c.remove();
+        });
+      });
+
+    })();
+  </script>
+</body>
+</html>
